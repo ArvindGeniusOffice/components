@@ -1,0 +1,205 @@
+import React, {  useEffect, useState } from 'react'
+import axios from 'axios'
+import { DataGrid } from '@mui/x-data-grid'
+import { useDispatch, useSelector } from 'react-redux'
+import { SelectDate, SelectItemGroupStatus, SelectResturantStatus, setResturantStatus } from '../../Redux/refresh'
+import { CustomFooterTotalComponent } from './Datagrid/itemGroup'
+import { Box } from '@mui/material'
+const ItemGroupWiseSale = () => {
+    const dispatch = useDispatch()
+    const ItemGroupStatus = useSelector(SelectItemGroupStatus)
+    const [itemReport,setItemReport] = useState([])
+    const [total,setTotal] = useState()
+    const ResturantStatus = useSelector(SelectResturantStatus)
+
+
+    const checkDateData = useSelector(SelectDate)
+
+    const headers = {
+        "Content-Type": "application/json",
+              }
+    
+    const ItemGroupColoum = [
+                { field: 'ITM_GROUP',   
+                 width:150,
+
+                headerClassName: 'super-app-theme--header',
+                renderHeader: (params) => (
+                  <div className='font-medium'>  {'Item Group'}  </div>       )
+              },
+
+                  { field: 'BASIC_AMT',
+                  valueFormatter: (params) => params.value.toLocaleString(),
+                  headerClassName: 'super-app-theme--header',
+                  align :'right',
+                  headerAlign: 'right',
+                  renderHeader: (params) => (
+                                 <div className='font-medium'> {'Amount'}  </div>  
+                                   ),
+                  flex:1 },
+                  { field: 'SERVICE_CHR',
+                  valueFormatter: (params) => params.value.toLocaleString(),
+                  align :'right',
+                  headerAlign: 'right',
+                  headerClassName: 'super-app-theme--header',
+                  renderHeader: (params) => (
+                                 <div   className='font-medium'>  {'Service Charge'}  </div>  
+                                   ),
+                  flex:1 },
+                  { field: 'CGST_AMT',
+                  align :'right',
+                  valueFormatter: (params) => params.value.toLocaleString(),
+                  headerAlign: 'right',
+                  headerClassName: 'super-app-theme--header',
+                  
+                  renderHeader: (params) => (
+                                 <div className='font-medium'>   {'CGST Amount'}  </div>  
+                                   ),
+                  flex:1 },
+                  { field: 'SGST_AMT',
+                  align :'right',
+                  headerAlign: 'right',
+                  valueFormatter: (params) => params.value.toLocaleString(),
+                  headerClassName: 'super-app-theme--header',
+                  renderHeader: (params) => (
+                                 <div className='font-medium'>   {'SGST Amount'}  </div>  
+                                   ),
+                  flex:1 },
+                  { field: 'NET_AMT',
+                  align :'right',
+                  headerAlign: 'right',
+                  valueFormatter: (params) => params.value.toLocaleString(),
+                  headerClassName: 'super-app-theme--total',
+                  
+                  renderHeader: (params) => (
+                                 <div  className='font-medium'>   {'Net Amount'}  </div>  
+                                   ),
+                  flex:1 },
+              ];
+
+    const getItemSaleReport =  ()=>{
+        axios.post(`/api/salesreport/itemGroupSaleReport`,{
+          "table_prefix":"go_",
+            "from_date" :checkDateData,
+               "to_date" :checkDateData
+    
+        },
+        {
+       headers:headers,
+      
+     }).then ((d)=>{
+        let rowList = []
+        let data = d.data
+    
+        for (let index = 0; index < data.length; index++) {
+           rowList.push(
+            {
+              ...data[index], id : index + 1
+            }
+           )
+          
+        }
+      
+        setItemReport(rowList)
+        dispatch(setResturantStatus(!ResturantStatus))
+     }).catch((err)=>{
+      console.log(err)
+     })
+    }
+
+
+    useEffect(()=>{
+    
+
+        getItemSaleReport()
+    },[ItemGroupStatus,checkDateData])
+   
+  return (
+    <div className='bg-slate-200 h-64 m-1   rounded-lg overflow-hidden'>
+            <Box  sx={{ height:'100%',width:'100%',backgroundColor:'#df7d4c', '& .super-app-theme--header': {
+          backgroundColor: '#df7d4c',
+         
+          
+        },'& .super-app-theme--total': {
+          backgroundColor: '#df7d4c',
+        
+          
+        }}}>
+       <DataGrid
+       hideFooterPagination
+       sx={{
+        
+        backgroundColor:'white',
+   
+        
+        '& .MuiDataGrid-row': {
+          backgroundColor:'gray'
+        },
+          
+        '& .MuiDataGrid-cell:hover': {
+          color: '#383535',
+        },}}
+       rowsPerPageOptions={[100,500,1000,1500]}
+    
+       pageSize={100}
+       // onRowClick = {(p)=>{
+       //   getEmployeeDetails(p.row)
+       // }}
+       rowHeight={34}
+       components={{
+        Footer: CustomFooterTotalComponent
+       }}
+       componentsProps={{
+         footer: { total }
+       }}
+       onStateChange={(state) => {
+        
+         const total = itemReport
+           .map((item) => item.NET_AMT)
+           .reduce((a, b) => a + b, 0);
+       //   console.log(total);
+         setTotal(total);
+       }}
+       
+       editMode={'row'}
+       experimentalFeatures={{ newEditingApi: true }}
+       rows={itemReport} columns={ItemGroupColoum} />
+       </Box>
+    </div>
+  )
+}
+
+export default ItemGroupWiseSale
+
+
+// datagrid footer
+
+
+
+import * as React from "react";
+
+
+
+export const CustomFooterTotalComponent = (props) => {
+
+      
+                 return (
+                    <div style={{borderTopWidth:1}} className="flex w-full py-1  border-[#d9d7d7]  bg-brown">
+                       <div className="text-sm text-white pl-2 flex justify-between  font-medium flex " style={{width:150}}>
+                        <div>Total</div>
+                        <div style={{width:2,backgroundColor:'#d9d7d7',marginRight:4}}/>
+                       </div> 
+                     
+                    
+           
+                       <div style={{flex:1,textAlign:'right'  }} className='flex justify-end pr-2 text-white' > 
+                       
+                       <div style={{width:2,backgroundColor:'#d9d7d7',marginRight:4}}/>
+                       {props.total ? props.total.toLocaleString() :null}</div>
+                      
+                      
+                      
+                    </div>
+   
+  );
+}
