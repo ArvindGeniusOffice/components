@@ -1,0 +1,827 @@
+import {
+  Add,
+  Cancel,
+  ExpandLess,
+  ExpandMore,
+  Remove,
+  Search,
+} from "@mui/icons-material";
+
+import { DataGrid } from "@mui/x-data-grid";
+import axios from "axios";
+import React from "react";
+import { useState } from "react";
+import { useEffect } from "react";
+
+import { useDispatch, useSelector } from "react-redux";
+import GetAllSection from "../../../../utility/list/allSection";
+import { SelectSectionList } from "../../../../utility/Redux/masters";
+import PersonAddAltOutlinedIcon from "@mui/icons-material/PersonAddAltOutlined";
+import YoutubeSearchedForIcon from "@mui/icons-material/YoutubeSearchedFor";
+import { Tooltip } from "@material-tailwind/react";
+import { Collapse } from "@mui/material";
+import {
+  clearOrderBillingList,
+  deletOrderItem,
+  SelectAllItemsList,
+  SelectBillingDiscount,
+  selectBillingNetAmount,
+  SelectEditQntyStatus,
+  SelectedSection,
+  SelectOrdersList,
+  setAllItemsList,
+  setBillingDiscount,
+  setBillingNetAmount,
+  setEditQntyStatus,
+  setOrderList,
+  setSelectedSection,
+  updateOrderlist,
+} from "../../../../utility/Redux/tableOrder";
+import { Save_button } from "../../../../utility/component/buttons";
+
+import EditItemModal from "./modGuestCreate";
+import { useNavigate } from "react-router-dom";
+
+import { toProperCase } from "../../../../utility/component/format";
+import {
+  setAlertMsg,
+  setALertStatus,
+  setBillHistryModalStatus,
+  setBillingAccountMasterModalStatus,
+  setBillSattalmentModalStatus,
+  setGuestCreateModalStatus,
+  setloading,
+} from "../../../../utility/Redux/modal";
+import {
+  selectGuestDetails,
+  selectPrefix,
+} from "../../../../utility/Redux/profile";
+
+import BillSettelmentModal from "./modSetBill";
+import CreateGuestMasterModal from "../masters/guestMaster.js/mod_createMaster";
+import { selectToken } from "../../../../utility/Redux/security";
+import { FormatNumber2 } from "../../../../utility/component/tools";
+import BillhistoryModal from "./modal/mBillHistry";
+import AccountMasterDatagridModal from "./modal/modAccontMaster";
+import ConfirmPrintAlert from "../../../../utility/component/modals/confirmPrintBill";
+import ShareBillModal from "./modal/modShareBill";
+import BillingAccountMasterDatagridModal from "./modal/modBillingAccMaster";
+
+const Billing = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [searchText, SetSearchText] = useState("");
+  const guestProfile = useSelector(selectGuestDetails);
+  const { guestName, guestMobile } = guestProfile;
+  const [open, setOpen] = useState(false);
+  const selectDiscountedAmount = useSelector(SelectBillingDiscount);
+  const handleSession = () => {
+    setOpen(!open);
+  };
+  function deleteItem(id) {
+    // Make a copy of the current list
+
+    const updatedList = [...orderList];
+
+    // Find the index of the item to delete
+    const indexToDelete = updatedList.findIndex((item) => item.id === id);
+
+    // If the item was found, remove it from the list
+    if (indexToDelete !== -1) {
+      updatedList.splice(indexToDelete, 1);
+      dispatch(deletOrderItem(updatedList));
+    }
+  }
+
+  const editQntyStatus = useSelector(SelectEditQntyStatus);
+  const SectionList = useSelector(SelectSectionList);
+  const selected_Section = useSelector(SelectedSection);
+  const orderList = useSelector(SelectOrdersList);
+  const [filterdItemList, setFilterdfilterdItemList] = useState();
+  const allItemList = useSelector(SelectAllItemsList);
+
+  const [editCellId, setEditCellId] = useState(null);
+  const token = useSelector(selectToken);
+  const prefix = useSelector(selectPrefix);
+
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  useEffect(() => {
+    if (searchText) {
+      const regex = /\d+/;
+
+      const searchItems = allItemList.filter((item) => {
+        if (regex.test(searchText.substring(0, 1))) {
+          return item.ICODE.toString().includes(searchText);
+        } else {
+          return item.ITEMNAME.toLowerCase().includes(searchText.toLowerCase());
+        }
+      });
+
+      setFilterdfilterdItemList(searchItems);
+    }
+  }, [searchText]);
+
+  function QuantityCell({ value, onIncrease, onDecrease }) {
+    return (
+      <div className="flex items-center">
+        <div className="border-2  items-center px-2 rounded-sm mr-1  hover:cursor-pointer font-semibold">
+          <Remove fontSize="20" onClick={onDecrease} color={"secondary"} />
+        </div>
+
+        <div
+          className="w-8 text-center"
+          onClick={() => dispatch(setEditQntyStatus(true))}
+        >
+          {value}
+        </div>
+
+        <div className="border-2 border-slate-200 px-2 rounded-sm ml-1 hover:cursor-pointer">
+          <Add fontSize="30" onClick={onIncrease} color={"secondary"} />
+        </div>
+      </div>
+    );
+  }
+  function QuantityCellMobile({ value, onIncrease, onDecrease }) {
+    return (
+      <div className="flex items-center  ">
+        <div className="border-2  items-center px-2  rounded-sm   hover:cursor-pointer font-semibold">
+          <Remove fontSize="20" onClick={onDecrease} color={"secondary"} />
+        </div>
+
+        <div
+          className="w-4 text-center"
+          onClick={() => dispatch(setEditQntyStatus(true))}
+        >
+          {value}
+        </div>
+
+        <div className="border-2 border-slate-200 px-2 rounded-sm  hover:cursor-pointer">
+          <Add fontSize="8" onClick={onIncrease} color={"secondary"} />
+        </div>
+      </div>
+    );
+  }
+
+  const columns = [
+    {
+      field: "ITEMNAME",
+      type: "string",
+      flex: 1,
+      headerAlign: "center",
+      renderCell: (params) => {
+        return (
+          <div className="flex">
+            <Cancel
+              onClick={() => {
+                deleteItem(params.row.id);
+              }}
+              color="secondary"
+              sx={{ fontSize: 16, marginRight: 1 }}
+            />
+            <div>{toProperCase(params.value)}</div>
+          </div>
+        );
+      },
+      // valueFormatter: ({ value }) => value.toUpperCase(),
+      headerClassName: "super-app-theme--header",
+      renderHeader: (params) => (
+        <div style={{ fontSize: 12 }}> {"Item Name"} </div>
+      ),
+    },
+    {
+      field: "QNTY",
+      type: "string",
+      width: 110,
+      editable: editQntyStatus,
+      align: "center",
+
+      renderCell: (params) => {
+        return (
+          <QuantityCell
+            value={params.row.QNTY}
+            onIncrease={() => {
+              addItem(params.row.id, params.row.QNTY);
+            }}
+            onDecrease={() => {
+              if (params.row.QNTY >= 2) {
+                SubtractItem(params.row.id, params.row.QNTY);
+              }
+            }}
+          />
+        );
+      },
+      headerClassName: "super-app-theme--header",
+      headerAlign: "center",
+      renderHeader: (params) => <div style={{ fontSize: 12 }}> Qnty </div>,
+    },
+    {
+      field: "SALE_PRICE",
+      type: "string",
+      width: 80,
+      editable: editQntyStatus,
+      align: "right",
+      valueFormatter: (params) => FormatNumber2(params.value),
+      headerClassName: "super-app-theme--header",
+      headerAlign: "center",
+      renderHeader: (params) => <div style={{ fontSize: 12 }}> Rate </div>,
+    },
+    {
+      field: "AMOUNT",
+      type: "number",
+      align: "right",
+      type: "number",
+      valueFormatter: (params) => FormatNumber2(params.value),
+      headerAlign: "center",
+      headerClassName: "super-app-theme--header",
+      width: 100,
+
+      renderHeader: (params) => <div style={{ fontSize: 12 }}>Amount </div>,
+    },
+  ];
+  const columnsMobileView = [
+    {
+      field: "ITEMNAME",
+      type: "string",
+      width: 130,
+      headerAlign: "center",
+      renderCell: (params) => {
+        return (
+          <div className="flex">
+            <Cancel
+              onClick={() => {
+                deleteItem(params.row.id);
+              }}
+              color="secondary"
+              sx={{ fontSize: 16, marginRight: 1 }}
+            />
+            <div>{toProperCase(params.value)}</div>
+          </div>
+        );
+      },
+      // valueFormatter: ({ value }) => value.toUpperCase(),
+      headerClassName: "super-app-theme--header",
+      renderHeader: (params) => <div style={{ fontSize: 12 }}> {"Item"} </div>,
+    },
+    {
+      field: "QNTY",
+      type: "string",
+      width: 80,
+      editable: editQntyStatus,
+      align: "center",
+
+      renderCell: (params) => {
+        return (
+          <QuantityCellMobile
+            value={params.row.QNTY}
+            onIncrease={() => {
+              addItem(params.row.id, params.row.QNTY);
+            }}
+            onDecrease={() => {
+              if (params.row.QNTY >= 2) {
+                SubtractItem(params.row.id, params.row.QNTY);
+              }
+            }}
+          />
+        );
+      },
+      headerClassName: "super-app-theme--header",
+      headerAlign: "center",
+      renderHeader: (params) => <div style={{ fontSize: 12 }}> Qnty </div>,
+    },
+    {
+      field: "AMOUNT",
+      type: "number",
+      flex: 1,
+      align: "right",
+      type: "number",
+      valueFormatter: (params) => FormatNumber2(params.value),
+      headerAlign: "center",
+      headerClassName: "super-app-theme--header",
+
+      renderHeader: (params) => <div style={{ fontSize: 12 }}>Amount </div>,
+    },
+  ];
+
+  useEffect(() => {
+    GetAllSection(dispatch, headers);
+  }, []);
+
+  const handleCellClick = ({ field, id }) => {
+    if (editQntyStatus) {
+      const isCellEditable = columns.find((column) => column.field === field)
+        ?.editable;
+      if (isCellEditable) {
+        setEditCellId(id);
+      }
+    }
+  };
+
+  const getFilterdItemList = () => {
+    dispatch(setloading(true));
+    axios
+      .post(
+        `/api/masters/listItemMaster`,
+        {
+          table_prefix: prefix,
+          sname: selected_Section,
+        },
+        {
+          headers: headers,
+        }
+      )
+      .then((res) => {
+        if (!res.data.error) {
+          const data = res.data.response;
+          let rowList = [];
+
+          for (let index = 0; index < data.length; index++) {
+            rowList.push({
+              ...data[index],
+              id: index + 1,
+            });
+          }
+          setFilterdfilterdItemList(rowList);
+          if (!selected_Section) {
+            dispatch(setAllItemsList(rowList));
+          }
+        }
+      })
+      .catch((e) => console.log(e))
+      .finally(() => {
+        dispatch(setloading(false));
+      });
+  };
+
+  useEffect(() => {
+    if (!searchText) {
+      getFilterdItemList();
+    }
+  }, [selected_Section, searchText]);
+
+  const editQnty = ({ id, field, value }) => {
+    const index = orderList.findIndex((item) => item.id === id);
+    const updatedItem = {
+      ...orderList[index],
+      AMOUNT: value * orderList[index].SALE_PRICE,
+      QNTY: value,
+    };
+    const updatedItems = [...orderList];
+    updatedItems[index] = updatedItem;
+    dispatch(updateOrderlist(updatedItems));
+    dispatch(setEditQntyStatus(false));
+  };
+
+  const addItem = (id, qnty) => {
+    const index = orderList.findIndex((item) => item.id === id);
+
+    const updatedItem = {
+      ...orderList[index],
+      QNTY: qnty + 1,
+      AMOUNT: (qnty + 1) * orderList[index].SALE_PRICE,
+    };
+    const updatedItems = [...orderList];
+    updatedItems[index] = updatedItem;
+    dispatch(updateOrderlist(updatedItems));
+    dispatch(setEditQntyStatus(false));
+  };
+
+  const SubtractItem = (id, qnty) => {
+    const index = orderList.findIndex((item) => item.id === id);
+    const updatedItem = {
+      ...orderList[index],
+      QNTY: qnty - 1,
+      AMOUNT: (qnty - 1) * orderList[index].SALE_PRICE,
+    };
+    const updatedItems = [...orderList];
+    updatedItems[index] = updatedItem;
+    dispatch(updateOrderlist(updatedItems));
+    dispatch(setEditQntyStatus(false));
+  };
+
+  const totalAmount = orderList?.reduce((acc, curr) => acc + curr.AMOUNT, 0);
+  const TotalQnty = orderList?.reduce((acc, curr) => acc + curr.QNTY, 0);
+  const NetAmountw = Number(totalAmount) - Number(selectDiscountedAmount);
+  const NetAmount = NetAmountw.toFixed(2);
+
+  useEffect(() => {
+    if (totalAmount >= 10000) {
+    }
+  }, [totalAmount]);
+
+  return (
+    <div className=" h-full flex flex-col justify-between  bg-slate-100 ">
+      <div
+        className="flex flex-col justify-center  pl-3 "
+        style={{
+          height: "6%",
+
+          backgroundColor: "#f5f0e8",
+        }}
+      >
+        <div className="flex md:justify-start items-center justify-between">
+          <div>
+            <Tooltip
+              content="Add User"
+              className="bg-[#383535] ml-5 mt-2"
+              delay={500}
+              placement="bottom"
+            >
+              <PersonAddAltOutlinedIcon
+                onClick={() =>
+                  dispatch(setBillingAccountMasterModalStatus(true))
+                }
+                fontSize={"medium"}
+              />
+            </Tooltip>
+          </div>
+          {guestMobile ? (
+            <div
+              style={{ fontSize: 13, borderWidth: "1px" }}
+              className="ml-3 p-1 flex border  text-[#e35454] border-slate-300    px-2 rounded-lg"
+            >
+              {guestMobile} ({toProperCase(guestName)})
+            </div>
+          ) : null}
+          <div
+            className="ml-3  md:flex"
+            onClick={() => {
+              dispatch(setBillHistryModalStatus(true));
+            }}
+          >
+            <YoutubeSearchedForIcon />
+          </div>
+          {open ? (
+            <ExpandLess onClick={handleSession} color="secondary" />
+          ) : (
+            <ExpandMore color="secondary" onClick={handleSession} />
+          )}
+          <div style={{ width: "40%" }} className={" md:hidden flex ml-3 "}>
+            <div
+              style={{ borderWidth: "1px" }}
+              className="flex items-center border-orange rounded-md  p-1"
+            >
+              <Search fontSize="11" />
+              <input
+                type={"text"}
+                value={searchText}
+                style={{ fontSize: 13 }}
+                className="w-28  outline-0 ml-1 bg-[#f5f0e8]"
+                placeholder="Search Items"
+                onChange={(t) => {
+                  SetSearchText(t.target.value);
+                }}
+              ></input>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        style={{ height: "86%", width: "100%" }}
+        className="flex  pt-1 px-1  bg-white p-3 "
+      >
+        <div className={"h-full md:w-1/3 w-5/6"}>
+          <div style={{ height: "80%", marginBottom: 8 }}>
+            <DataGrid
+              hideFooterPagination
+              hideFooter
+              disableColumnMenu
+              disableColumnFilter
+              hideFooterRowCount
+              headerHeight={34}
+              hideFooterSelectedRowCount
+              sx={{
+                backgroundColor: "white",
+
+                fontSize: 11,
+                "& .super-app-theme--header": {
+                  backgroundColor: " #f5f0e8",
+                  fontFamily: "Verdana",
+                },
+              }}
+              rowHeight={34}
+              columns={window.innerWidth <= 740 ? columnsMobileView : columns}
+              rows={orderList}
+              pageSize={100}
+              rowsPerPageOptions={[100]}
+              showCellRightBorder={true}
+              showColumnRightBorder={true}
+              onCellClick={handleCellClick}
+              editMode={"cell"}
+              onCellEditCommit={editQnty}
+            />
+          </div>
+
+          <div
+            style={{ width: "100%" }}
+            className={
+              " flex flex-col md:flex-row  p-2 w-full    justify-between  "
+            }
+          >
+            <div className="flex  justify-end  ">
+              <div
+                className="w-20 text-right  mr-1 font-semibold whitespace-nowrap "
+                style={{ fontSize: 14 }}
+              >
+                Total Qnty :{" "}
+              </div>
+              <div
+                className="pl-2 w-16 ml-1 text-right font-semibold md:text-left md:w-10 items-center"
+                style={{ fontSize: 14 }}
+              >
+                {TotalQnty}
+              </div>
+            </div>
+
+            <div>
+              <div
+                style={{ fontSize: 13 }}
+                className="flex justify-end   w-full"
+              >
+                <div className="flex  items-center">
+                  <div
+                    style={{ fontSize: 13 }}
+                    className=" mr-1  whitespace-nowrap text-right md:text-right text-black  md:w-28 w-20   "
+                  >
+                    Total :
+                  </div>
+                  <div className="flex " style={{ fontSize: 13 }}>
+                    <input
+                      className=" w-16 md:w-28 text-right ml-1    text-black  outline-0 "
+                      type={"number"}
+                      value={totalAmount?.toFixed(2)}
+                      readOnly
+                    />
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{ fontSize: 13 }}
+                className="flex justify-end   w-full"
+              >
+                <div className="flex justify-end items-center py-1 ">
+                  <div
+                    style={{ fontSize: 13 }}
+                    className=" mr-2 whitespace-nowrap text-right text-black  md:w-28 w-20 "
+                  >
+                    Discount :
+                  </div>
+                  <div
+                    style={{ fontSize: 13 }}
+                    // className={"border-2 border-brown rounded-sm"}
+                  >
+                    <input
+                      className=" w-16 md:w-28 text-right md:text-right py-1 bg-slate-200  text-black  outline-4 outline-orange "
+                      type={"number"}
+                      onChange={(t) => {
+                        dispatch(setBillingDiscount(t.target.value));
+                        dispatch(
+                          setBillingNetAmount(totalAmount - t.target.value)
+                        );
+                      }}
+                      value={selectDiscountedAmount}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div
+                style={{ fontSize: 13 }}
+                className="flex justify-end   w-full"
+              >
+                <div className="flex justify-end items-center py-1">
+                  <div
+                    style={{ fontSize: 14 }}
+                    className=" mr-1 text-right md:text-right whitespace-nowrap  font-semibold  text-black md:w-28 w-20 "
+                  >
+                    Net Amount :
+                  </div>
+                  <div style={{ fontSize: 14 }}>
+                    <input
+                      className="w-16 md:w-28 text-right md:text-right ml-1  text-black  font-semibold outline-0 "
+                      type={"number"}
+                      value={NetAmount}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={` flex  flex-col-reverse  md:flex md:grow md:flex-row    `}
+        >
+          <div className=" w-full md:flex pt-1 pl-2  md:h-full  flex flex-col   ">
+            <div className="text-sm text-[#4a4646]  mb-2 w-full flex justify-between   items-center">
+              <div
+                style={{ fontSize: 13 }}
+                className="font-semibold text-[#4a4646] pl-1"
+              >
+                <div style={{ width: "40%" }} className={" hidden md:flex  "}>
+                  <div
+                    style={{ borderWidth: "1px" }}
+                    className="flex items-center border-orange rounded-md  p-1"
+                  >
+                    <Search fontSize="11" />
+                    <input
+                      type={"text"}
+                      value={searchText}
+                      style={{ fontSize: 13 }}
+                      className="w-28  outline-0 ml-1"
+                      placeholder="Search Items"
+                      onChange={(t) => {
+                        SetSearchText(t.target.value);
+                      }}
+                    ></input>
+                  </div>
+                </div>
+                {/* {selected_Section ? selected_Section : "All Items"}{" "} */}
+              </div>
+            </div>
+
+            <div
+              className={`w-full grid grid-cols-1 ${
+                open ? "md:grid-cols-3" : "md:grid-cols-5"
+              } gap-1 overflow-y-scroll scrollbar-hidden`}
+            >
+              {filterdItemList?.map((d) => {
+                return (
+                  <div
+                    key={d.id}
+                    onClick={() => {
+                      if (d.SALE_PRICE) {
+                        dispatch(
+                          setOrderList({
+                            // item: d.ITEMNAME,
+                            // qnty: 1,
+                            // amount: d.SALE_PRICE,
+                            QNTY: 1,
+                            AMOUNT: d.SALE_PRICE,
+                            ICODE: d.ICODE,
+                            ITEMNAME: d.ITEMNAME,
+                            SECTION_NAME: d.SECTION_NAME,
+                            SALE_PRICE: d.SALE_PRICE,
+                            TAX1_RATE: d.TAX1_RATE,
+                            TAX2_RATE: d.TAX2_RATE,
+                            TAX3_RATE: d.TAX3_RATE,
+                            HSN_CODE: d.HSN_CODE,
+                            CESS_RATE: d.CESS_RATE,
+                            BASIC_RT: d.SALE_PRICE,
+                          })
+                        );
+                      }
+                    }}
+                    className={`w-full max-w-sm group border border-gray-200 rounded-lg shadow  dark:border-gray-700  ${
+                      d.SALE_PRICE ? "bg-[#ebaf81]" : "bg-gray-200"
+                    } 
+
+              
+                
+                `}
+                  >
+                    <div className="  flex flex-col  justify-between pt-1 pl-3 pb-2 pr-2    ">
+                      <div className=" font-medium   w-full ">
+                        <div
+                          className="pl-0.5"
+                          style={
+                            window.innerWidth <= 760
+                              ? { fontSize: 10 }
+                              : { fontSize: 13 }
+                          }
+                        >
+                          {d.ICODE}
+                        </div>
+                        <div
+                          style={
+                            window.innerWidth <= 760
+                              ? { fontSize: 12 }
+                              : { fontSize: 17 }
+                          }
+                        >
+                          {toProperCase(d.ITEMNAME)}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-between   ">
+                        <div
+                          style={
+                            window.innerWidth <= 760
+                              ? { fontSize: 9 }
+                              : { fontSize: 12 }
+                          }
+                        >
+                          RS.:{" " + d.SALE_PRICE.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <Collapse
+            in={open}
+            orientation="horizontal"
+            timeout="auto"
+            unmountOnExit
+          >
+            <div className="  w-full  ml-2 ">
+              <div
+                style={{
+                  borderWidth: "1px",
+                }}
+                className=" pt-2   bg-white  shadow-sm border-slate-200 border-b-0 rounded-tl-lg rounded-tr-lg   h-full flex flex-col mb-3"
+              >
+                {/* <div className="flex  justify-center text-sm text-[#4a4646] font-bold mb-2">
+              Select Section Type
+            </div>
+            <div style={{ height: "1px" }} className="bg-slate-200  mb-2"></div> */}
+
+                <div
+                  style={{ fontSize: 12 }}
+                  className=" p-2 grid grid-cols-1 md:grid-cols-2 gap-2 overflow-y-scroll scrollbar-hidden  "
+                >
+                  {SectionList?.map((d, i) => {
+                    return (
+                      <div
+                        key={d.key}
+                        onClick={() => {
+                          dispatch(setSelectedSection(d.Name));
+                        }}
+                        className={` hover:text-black    hover:bg-[#ebaf81] rounded-lg hover:cursor-pointer ${
+                          selected_Section === d.Name
+                            ? "bg-[#ebaf81] text-black"
+                            : "bg-[#f7e39c] text-black "
+                        } flex items-center p-2  h-12   `}
+                      >
+                        <p
+                          style={
+                            window.innerWidth <= 740
+                              ? { fontSize: 11 }
+                              : { fontSize: 14 }
+                          }
+                        >
+                          {" "}
+                          {toProperCase(d.Name)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </Collapse>
+        </div>
+      </div>
+
+      <div
+        style={{ height: "8%" }}
+        className="flex w-full  justify-between  grow items-center   "
+      >
+        <div className="  flex grow pl-4  ">
+          <EditItemModal />
+          <BillSettelmentModal />
+          <BillingAccountMasterDatagridModal />
+          <CreateGuestMasterModal />
+          <ConfirmPrintAlert />
+          <BillhistoryModal />
+          <ShareBillModal />
+          <div style={{ width: "33%" }}></div>{" "}
+          <div style={{ width: "67%" }} className="justify-end flex ">
+            <div>
+              <Save_button
+                onClick={() => {
+                  if (orderList[0]) {
+                    dispatch(setBillSattalmentModalStatus(true));
+                  } else {
+                    dispatch(
+                      setAlertMsg(
+                        "Please add items to the bill before attempting to save."
+                      )
+                    );
+                    dispatch(setALertStatus(true));
+                  }
+                }}
+              />
+              <button
+                style={{ fontSize: 14 }}
+                onClick={() => {
+                  dispatch(clearOrderBillingList());
+                }}
+                className="bg-[#4d424d]  text-white ml-1 py-2 px-7 rounded"
+              >
+                Undo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Billing;
